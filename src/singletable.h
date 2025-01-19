@@ -128,7 +128,6 @@ class SingleTable {
 
     uint64_t v1 = *((uint64_t *)p1);
     uint64_t v2 = *((uint64_t *)p2);
-
     // caution: unaligned access & assuming little endian
     if (bits_per_tag == 4 && kTagsPerBucket == 4) {
       return hasvalue4(v1, tag) || hasvalue4(v2, tag);
@@ -141,6 +140,54 @@ class SingleTable {
     } else {
       for (size_t j = 0; j < kTagsPerBucket; j++) {
         if ((ReadTag(i1, j) == tag) || (ReadTag(i2, j) == tag)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+  inline void test() {
+    std::cout << "test" << std::endl;
+  }
+  inline bool FindTagInBuckets_PCF(const size_t i1, const size_t i2,
+                               const uint32_t tag) const {
+    const char *p1 = buckets_[i1].bits_;
+    const char *p2 = buckets_[i2].bits_;
+    // const char *p3 = buckets_[127765].bits_;
+    uint32_t tag2 = tag ^ (1 << (bits_per_tag-1));
+    uint64_t v1 = *((uint64_t *)p1);
+    uint64_t v2 = *((uint64_t *)p2);
+    // uint64_t v3 = *((uint64_t *)p3);
+    // std::cout << "i1: " << i1 << std::endl;
+    // std::cout << "i2: " << i2 << std::endl;
+    // std::cout << "tag: " << tag << std::endl;
+    // std::cout << "tag2: " << tag2 << std::endl;
+    // std::cout << "v3: " << v3 << std::endl;
+    // std::cout << "(hasvalue16(16384, 16384)): " << (hasvalue16(16384, 16384)) << std::endl;
+    // std::cout << "(hasvalue16(16384, 81920)): " << (hasvalue16(16384, 81920)) << std::endl;
+    // std::cout << ": " << (16384) ^ (0x0001000100010001ULL * (81920)) << std::endl;
+    // caution: unaligned access & assuming little endian
+    if (bits_per_tag == 4 && kTagsPerBucket == 4) {
+      return hasvalue4(v1, tag) || hasvalue4(v2, tag2);
+    } else if (bits_per_tag == 8 && kTagsPerBucket == 4) {
+      return hasvalue8(v1, tag) || hasvalue8(v2, tag2);
+    } else if (bits_per_tag == 12 && kTagsPerBucket == 4) {
+      return hasvalue12(v1, tag) || hasvalue12(v2, tag2);
+    } 
+    // else if (bits_per_tag == 16 && kTagsPerBucket == 4) {
+    //   // if (hasvalue16(v3, 16384)) std::cout <<"find 16384" << std::endl;
+    //   // if (hasvalue16(v3, 81920)) std::cout <<"find 81920" << std::endl;
+    //   // if (hasvalue16(v1, tag)) std::cout <<"find in i1" << std::endl;
+    //   // if (hasvalue16(v2, tag2)) std::cout <<"find in i2" << std::endl;
+    //   return hasvalue16(v1, tag) || hasvalue16(v2, tag2);
+    // } 
+    else {
+      for (size_t j = 0; j < kTagsPerBucket; j++) {
+        if ((ReadTag(i1, j) == tag) || (ReadTag(i2, j) == tag2)) {
+          // if (ReadTag(127765, 16384) == tag) std::cout <<"find 16384" << std::endl;
+          // if (ReadTag(127765, 81920) == tag) std::cout <<"find 81920" << std::endl;
+          // if (ReadTag(i1, j) == tag) std::cout <<"find in i1" << std::endl;
+          // if (ReadTag(i2, j) == tag2) std::cout <<"find in i2" << std::endl;
           return true;
         }
       }
@@ -191,10 +238,25 @@ class SingleTable {
                                 const bool kickout, uint32_t &oldtag) {
     for (size_t j = 0; j < kTagsPerBucket; j++) {
       if (ReadTag(i, j) == 0) {
+        // std::cout << "insert tag: " << tag << std::endl;
+        // std::cout << "i: " << i << std::endl;
+        // std::cout << "tag: " << tag << std::endl;
+        // std::cout << "oldtag: " << oldtag << std::endl;
         WriteTag(i, j, tag);
+// const char *p3 = buckets_[127765].bits_;
+//     uint64_t v3 = *((uint64_t *)p3);
+//               if (hasvalue16(v3, 16384)) std::cout <<"find 16384" << std::endl;
+//       if (hasvalue16(v3, 81920)) std::cout <<"find 81920" << std::endl;
+//                 if (ReadTag(127765, 16384) == tag) std::cout <<"find 16384" << std::endl;
+//           if (ReadTag(127765, 81920) == tag) std::cout <<"find 81920" << std::endl;
+
+//         for (size_t t = 0; t < kTagsPerBucket; t++) {
+//       std::cout << "t tag: " << ReadTag(i, t) << std::endl;
+//     }
         return true;
       }
     }
+    
     if (kickout) {
       size_t r = rand() % kTagsPerBucket;
       oldtag = ReadTag(i, r);
