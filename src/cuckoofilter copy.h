@@ -64,7 +64,7 @@ protected:
   virtual inline uint32_t TagHash(uint32_t hv) const {
     uint32_t tag;
     tag = hv & ((1ULL << bits_per_item) - 1);
-    // tag += (tag == 0);
+    tag += (tag == 0);
     return tag;
   }
 
@@ -75,7 +75,6 @@ protected:
     // MurmurHash3_x64_128(&item, 8, 32776517, buf);
     // *index = IndexHash(buf[0] >> 32);
     // *tag = TagHash(buf[0]);
-
     const uint64_t hash = hasher_(item);
     *index = IndexHash(hash >> 32);
     *tag = TagHash(hash);
@@ -148,9 +147,6 @@ Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::Add(
     return NotEnoughSpace;
   }
   GenerateIndexTagHash(item, &i, &tag);
-  // std::cout << "ADD" << std::endl;
-  // std::cout << "i: " << i << std::endl;
-  // std::cout << "tag: " << tag << std::endl;
   return AddImpl(i, tag);
 }
 
@@ -190,15 +186,11 @@ Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::Contain(
 
   GenerateIndexTagHash(key, &i1, &tag);
   i2 = AltIndex(i1, tag);
-  // std::cout << "CONTAIN" << std::endl;
-  // std::cout << "i1: " << i1 << std::endl;
-  // std::cout << "tag: " << tag << std::endl;
-  // std::cout << "i2: " << i2 << std::endl;
   assert(i1 == AltIndex(i2, tag));
   found = victim_.used && (tag == victim_.tag) &&
           (i1 == victim_.index || i2 == victim_.index);
   // if (std::is_same<TableType<bits_per_item>, Max64Table<bits_per_item>>::value) {
-    if (found || table_->FindTagInBuckets(i1, i2, tag)) {
+    if (found || table_->FindTagInBuckets_PCF(i1, i2, tag)) {
       return Ok;
     } else {
       return NotFound;

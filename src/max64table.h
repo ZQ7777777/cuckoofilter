@@ -108,6 +108,15 @@ class Max64Table {
   //     return false;
   //   }
   // }
+    inline bool FindTagInBuckets(const size_t i1, const size_t i2,
+                               const uint32_t tag) const {
+    for (size_t j = 0; j < kTagsPerBucket; j++) {
+      if ((ReadTag(i1, j) == tag && Read64(i1, j) != kEmptyCell ) || (ReadTag(i2, j) == tag && Read64(i2, j) != kEmptyCell)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   inline bool FindTagInBuckets_PCF(const size_t i1, const size_t i2,
                                const size_t tag) const {
@@ -180,7 +189,7 @@ class Max64Table {
             ((size_t *)p)[j] = kEmptyCell;
             indicator = 1;
             pos = j;
-            std::cout << "i1   j=  "<< j << endl;
+            // std::cout << "i1   j=  "<< j << endl;
             flag = true;
             break;
       } else if (ReadTag(i2, j) == tag2) {
@@ -189,7 +198,7 @@ class Max64Table {
             indicator = 2;
             pos = j;
             flag = true;
-            std::cout << "i2  j=  "<< j << endl;
+            // std::cout << "i2  j=  "<< j << endl;
             break;
       }
     }
@@ -197,11 +206,11 @@ class Max64Table {
     size_t j = kTagsPerBucket - 1;
     if (Read64(i1, j) == kEmptyCell) {
       WriteTag(i1, j, tag);
-      std::cout << "i1 adpsolt 找到" << endl;
+      // std::cout << "i1 adpsolt 找到" << endl;
       return true;
     } else if (Read64(i2, j) == kEmptyCell) {
       WriteTag(i2, j, tag2);
-      std::cout << "i2 adpsolt 找到" << endl;
+      // std::cout << "i2 adpsolt 找到" << endl;
       return true;
     } else {
       size_t hot1 = ReadTag(i1, j);
@@ -210,8 +219,8 @@ class Max64Table {
         hot1 ^= 1ULL << (bits_per_tag-1);
         WriteTag(alt1, j, hot1);
         WriteTag(i1, j, tag);
-        std::cout << "i1 对应的adpsolt中的"<<hot1 <<"kick到alt1  "<< alt1 <<"中的adp solt"<< endl;
-        std::cout<<FindTagInBuckets_RF(i1,alt1,hot1)<<endl;
+        // std::cout << "i1 对应的adpsolt中的"<<hot1 <<"kick到alt1  "<< alt1 <<"中的adp solt"<< endl;
+        // std::cout<<FindTagInBuckets_RF(i1,alt1,hot1)<<endl;
         return true;
       }
       size_t hot2 = ReadTag(i2, j);
@@ -220,18 +229,18 @@ class Max64Table {
         hot2 ^= 1ULL << (bits_per_tag-1);
         WriteTag(alt2, j, hot2);
         WriteTag(i2, j, tag2);
-        std::cout << "i2 对应的adpsolt中的"<<hot2 <<"kick" << endl;
+        // std::cout << "i2 对应的adpsolt中的"<<hot2 <<"kick" << endl;
         return true;
       }
       if (indicator == 1) {
         WriteTag(i1, pos, hot1);
         WriteTag(i1, j, tag);
-        std::cout << "i1 对应的adpsolt中的"<<hot1 <<"exchange" << endl;
+        // std::cout << "i1 对应的adpsolt中的"<<hot1 <<"exchange" << endl;
         return true;
       } else {
         WriteTag(i2, pos, hot2);
         WriteTag(i2, j, tag2);
-        std::cout << "i2 对应的adpsolt中的"<<hot2 <<"exchange" << endl;
+        // std::cout << "i2 对应的adpsolt中的"<<hot2 <<"exchange" << endl;
         return true;
       }
     }
