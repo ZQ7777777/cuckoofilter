@@ -110,6 +110,10 @@ public:
     this->table_ = new Max64Table<4>(bits_per_item, num_buckets);
   }
 
+  ~PerfectCF() {
+    delete table_;
+  }
+
   Status Add32(const ItemType &item) {
     size_t i;
     uint32_t tag;

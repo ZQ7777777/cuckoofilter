@@ -327,6 +327,27 @@ class Max64Table {
     return false;
   }
 
+  //   inline bool InsertTagToBucketRCF(const size_t i, const size_t tag,
+  //                               const bool kickout, size_t &oldtag) {
+  //   for (size_t j = 0; j < kTagsPerBucket; j++) {
+  //     if (Read64(i, j) == kEmptyCell) {
+  //       // std::cout << "insert tag: " << tag << std::endl;
+  //       // std::cout << "insert to: " << i << std::endl;
+  //       // std::cout << "insert to: " << j << std::endl;
+  //       WriteTag(i, j, tag);
+
+  //       return true;
+  //     } 
+  //   }
+    
+  //   if (kickout) {
+  //     size_t r = rand() % kTagsPerBucket;
+  //     oldtag = ReadTag(i, r);
+  //     WriteTag(i, r, tag);
+  //   }
+  //   return false;
+  // }
+
   inline size_t NumTagsInBucket(const size_t i) const {
     size_t num = 0;
     for (size_t j = 0; j < kTagsPerBucket; j++) {

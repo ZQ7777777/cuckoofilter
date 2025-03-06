@@ -105,15 +105,26 @@ public:
     victim_.used = false;
     this->table_ = new Max64Table<4>(bits_per_item, num_buckets);
     this->s = s;
+    // size_t layer1Bits = (1ULL << h1) * 4 * (h2+1);
+    // size_t layer2Bits = layer1Bits * 0.01;
+    // while ((1ULL << this->s) * 4 * (h1 + h3 + 1 - this->s) <= layer2Bits) { 
+    //   this->s++;
+    // }
+    // this->s--;
+    std::cout << "s: " << this->s << std::endl;
+      // std::cout << "layer1: " << (1ULL << h1) * 4 * (h2+1) << std::endl;
+      // std::cout << "PRE layer2: " << (1ULL << s) * (h1 + h3 + 1 - s) << std::endl;
 
-      std::cout << "layer1: " << (1ULL << h1) * (h2+1) << std::endl;
-      std::cout << "layer2: " << (1ULL << s) * (h1 + h3 + 1 - s) << std::endl;
-
-    size_t num_buckets_suffixCache = 1ULL << s;
-    size_t bits_per_item_suffixCache = h1 + h3 + 1 - s;
+    size_t num_buckets_suffixCache = 1ULL << this->s;
+    size_t bits_per_item_suffixCache = h1 + h3 + 1 - this->s;
     this->suffixCache = new Max64Table<4>(bits_per_item_suffixCache, num_buckets_suffixCache);
   }
 
+  ~RCF() {
+    delete table_;
+    delete suffixCache;
+  }
+  
   Status Add(const ItemType &item) {
     size_t i;
     size_t tag;
