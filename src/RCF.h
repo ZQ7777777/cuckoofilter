@@ -84,7 +84,7 @@ class RCF {
     // index ^ HashUtil::BobHash((const void*) (&tag), 4)) & table_->INDEXMASK;
     // now doing a quick-n-dirty way:
     // 0x5bd1e995 is the hash constant from MurmurHash2
-    return (size_t)(index ^ ((tag& ((1ULL << h2) - 1)) ))& (this->table_->NumBuckets() - 1);
+    return (size_t)(index ^ ((tag& ((1ULL << h2) - 1)) * 0x5bd1e995))& (this->table_->NumBuckets() - 1);
   }
 
 public:
@@ -112,6 +112,9 @@ public:
     // }
     // this->s--;
     std::cout << "s: " << this->s << std::endl;
+    std::cout << "h1: " << h1 << std::endl;
+    std::cout << "h2: " << h2 << std::endl;
+    std::cout << "h3: " << h3 << std::endl;
       // std::cout << "layer1: " << (1ULL << h1) * 4 * (h2+1) << std::endl;
       // std::cout << "PRE layer2: " << (1ULL << s) * (h1 + h3 + 1 - s) << std::endl;
 
@@ -133,6 +136,7 @@ public:
       return NotEnoughSpace;
     }
     GenerateIndexTagHash(item, &i, &tag, &hs);
+    // std::cout << "RCF ADD " << "i: " << i  << "tag: " << tag << std::endl;
     return AddImpl(i, tag);
   }
 

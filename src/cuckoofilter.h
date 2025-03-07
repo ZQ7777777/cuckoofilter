@@ -71,14 +71,32 @@ protected:
   virtual inline void GenerateIndexTagHash(const ItemType& item, size_t* index,
                                    uint32_t* tag) const {
     
-    // uint64_t buf[2];
-    // MurmurHash3_x64_128(&item, 8, 32776517, buf);
-    // *index = IndexHash(buf[0] >> 32);
-    // *tag = TagHash(buf[0]);
+    uint64_t buf[2];
+    MurmurHash3_x64_128(&item, 8, 32776517, buf);
+    *index = IndexHash(buf[0] >> 32);
+    *tag = TagHash(buf[0]);
 
-    const uint64_t hash = hasher_(item);
-    *index = IndexHash(hash >> 32);
-    *tag = TagHash(hash);
+    // const uint64_t hash = hasher_(item);
+    // *index = IndexHash(hash >> 32);
+    // *tag = TagHash(hash);
+
+    // uint64_t  hash;
+    // hash = LC32((uint32_t)item);
+    // size_t h2 = bits_per_item;
+    // size_t h1 = std::log2(table_->NumBuckets());
+    // size_t h3 = 32 - h1 - h2;
+    // hash >>= h3;
+    // *tag = hash & ((1ULL << h2) - 1);
+    // *index = hash >> h2;
+
+    // tag = hv & ((1ULL << bits_per_item) - 1);
+    // *index = IndexHash(hash >> 32);
+    // *tag = TagHash(hash);
+    // uint64_t hash;
+    // MurmurHash3_x64_128(&item, sizeof(uint64_t), 0, &hash);
+    // *hashSuffix = hash & ((1ULL << (h3)) - 1);
+    
+
   }
 
   virtual inline size_t AltIndex(const size_t index, const uint32_t tag) const {
@@ -148,9 +166,7 @@ Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::Add(
     return NotEnoughSpace;
   }
   GenerateIndexTagHash(item, &i, &tag);
-  // std::cout << "ADD" << std::endl;
-  // std::cout << "i: " << i << std::endl;
-  // std::cout << "tag: " << tag << std::endl;
+  // std::cout << "CF ADD " << "i: " << i  << "tag: " << tag << std::endl;
   return AddImpl(i, tag);
 }
 
