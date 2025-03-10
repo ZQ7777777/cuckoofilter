@@ -133,6 +133,59 @@ class Max64Table {
     return false;
   }
 
+    inline bool FindTagInBuckets_ADPPCF(const size_t i1, const size_t i2,
+                               const size_t tag, const size_t cntSize) {
+    // const char *p1 = buckets_[i1].bits_;
+    // const char *p2 = buckets_[i2].bits_;
+    size_t tag2 = tag ^ (1ULL << (bits_per_tag-1-cntSize));
+    // std::cout << "tag: " << tag << std::endl;
+    // std::cout << "i1: " << i1 << std::endl;
+    for (size_t j = 0; j < kTagsPerBucket; j++) {
+      size_t curTag = ReadTag(i1, j);
+      if ((curTag & ((1ULL << (bits_per_tag-cntSize)) - 1)) == tag && Read64(i1, j) != kEmptyCell ) {
+        size_t cnt = curTag >> (bits_per_tag-cntSize);
+        size_t newTag = cnt < (1ULL << cntSize) - 1 ? curTag + (1ULL << (bits_per_tag-cntSize)) : curTag;
+        WriteTag(i1, j, newTag);
+        return true;
+      }
+      curTag = ReadTag(i2, j);
+      if ((curTag & ((1ULL << (bits_per_tag-cntSize)) - 1)) == tag2 && Read64(i2, j) != kEmptyCell) {
+        size_t cnt = curTag >> (bits_per_tag-cntSize);
+        size_t newTag = cnt < (1ULL << cntSize) - 1 ? curTag + (1ULL << (bits_per_tag-cntSize)) : curTag;
+        WriteTag(i2, j, newTag);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  inline bool Adp_ADPPCF(const size_t i1, const size_t i2,
+                               const size_t tag, const size_t cntSize) {
+    // std::cout << "Adp_ADPPCF i1: " <<i1<< std::endl;
+    size_t tag2 = tag ^ (1ULL << (bits_per_tag-1-cntSize));
+    size_t start = i1 % kTagsPerBucket;
+    for (size_t i = 0; i < kTagsPerBucket; i++) {
+      size_t j = (i + start) % kTagsPerBucket;
+      if ((ReadTag(i1, j) >> (bits_per_tag-cntSize)) == 0) {
+        size_t newTag = tag + (1ULL << (bits_per_tag-cntSize));
+        WriteTag(i1, j, newTag);
+        return true;
+      }
+      if ((ReadTag(i2, j) >> (bits_per_tag-cntSize)) == 0) {
+        size_t newTag = tag2 + (1ULL << (bits_per_tag-cntSize));
+        WriteTag(i2, j, newTag);
+        return true;
+      }
+    }
+    for (size_t j = 0; j < kTagsPerBucket; j++) {
+      size_t newTag = ReadTag(i1, j) - (1ULL << (bits_per_tag-cntSize));
+      WriteTag(i1, j, newTag);
+      newTag = ReadTag(i2, j) - (1ULL << (bits_per_tag-cntSize));
+      WriteTag(i2, j, newTag);
+    }
+    return true;
+  }
+
     inline int FindTagInBuckets_RF(const size_t i1, const size_t i2,
                                const size_t tag) const {
     size_t tag2 = tag ^ (1ULL << (bits_per_tag-1));

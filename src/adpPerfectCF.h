@@ -1,10 +1,5 @@
-//probelm:
-//1. 重写cuckoofilter中涉及比较的部分，使其能够实现完美的cuckoofilter √
-//2. table_存在两次构造的问题
-//3. 任意bits_per_item
-//4. tag为0的情况
-#ifndef CUCKOO_FILTER_PERFECTCF_H_
-#define CUCKOO_FILTER_PERFECTCF_H_
+#ifndef CUCKOO_FILTER_ADPPERFECTCF_H_
+#define CUCKOO_FILTER_ADPPERFECTCF_H_
 #pragma once
 
 #include <assert.h>
@@ -46,8 +41,8 @@ namespace cuckoofilter {
 // const size_t kMaxCuckooCount = 500;
 
 template <typename ItemType, 
-          size_t totalbits = 64>
-class PerfectCF {
+          size_t totalbits = 32, size_t cntSize = 1>
+class AdpPerfectCF {
 
   Max64Table<4> *table_;
 
@@ -68,8 +63,8 @@ class PerfectCF {
     const uint64_t hash = LC64((uint64_t)item);
     // uint64_t hash;
     // MurmurHash3_x64_128(&item, sizeof(uint64_t), 0, &hash);
-    *index = hash >> (bits_per_item - 1);
-    *tag = hash & ((1ULL << (bits_per_item - 1)) - 1);
+    *index = hash >> (bits_per_item - 1 - cntSize);
+    *tag = hash & ((1ULL << (bits_per_item - 1 - cntSize)) - 1);
   }
 
   inline void GenerateIndexTagHash32(const ItemType& item, size_t* index, uint32_t* tag) const {
@@ -77,8 +72,8 @@ class PerfectCF {
     const uint32_t hash = LC32((uint32_t)item);
     // uint32_t hash;
     // MurmurHash3_x64_128(&item, sizeof(uint32_t), 0, &hash);
-    *index = hash >> (bits_per_item - 1);
-    *tag = hash & ((1 << (bits_per_item - 1)) - 1);
+    *index = hash >> (bits_per_item - 1 - cntSize);
+    *tag = hash & ((1 << (bits_per_item - 1 - cntSize)) - 1);
   }
 
   inline size_t AltIndex(const size_t index, const uint32_t tag) const {
@@ -86,15 +81,15 @@ class PerfectCF {
     // index ^ HashUtil::BobHash((const void*) (&tag), 4)) & table_->INDEXMASK;
     // now doing a quick-n-dirty way:
     // 0x5bd1e995 is the hash constant from MurmurHash2
-    return (size_t)(index ^ ((tag& ((1ULL << (bits_per_item - 1)) - 1)) * 0x5bd1e995))& (this->table_->NumBuckets() - 1);
+    return (size_t)(index ^ ((tag& ((1ULL << (bits_per_item - 1 - cntSize)) - 1)) * 0x5bd1e995))& (this->table_->NumBuckets() - 1);
   }
 
 public:
-  explicit PerfectCF(const size_t max_num_keys) {
+  explicit AdpPerfectCF(const size_t max_num_keys) {
     size_t assoc = 4;
     // this->bits_per_item = static_cast<int>(totalbits - std::ceil(std::log2(max_num_keys)) + 3);
-    this->bits_per_item = static_cast<int>(totalbits - std::ceil(std::log2(max_num_keys)) + 3);
-    size_t num_buckets = 1ULL << (totalbits + 1 - bits_per_item);
+    this->bits_per_item = static_cast<int>(totalbits - std::ceil(std::log2(max_num_keys)) + 3 + cntSize);
+    size_t num_buckets = 1ULL << (totalbits + 1 + cntSize - bits_per_item);
     double frac = (double)max_num_keys / num_buckets / assoc;
     std::cout << "frac: " << frac << std::endl;
     // if (frac < 0.62) {
@@ -110,16 +105,20 @@ public:
     this->table_ = new Max64Table<4>(bits_per_item, num_buckets);
   }
 
-  ~PerfectCF() {
+  ~AdpPerfectCF() {
     delete table_;
   }
 
   Status Add32(const ItemType &item) {
-    size_t i;
-    uint32_t tag;
     if (victim_.used) {
+      Adp(item);
       return NotEnoughSpace;
     }
+    // if (LoadFactor() > 0.95) {
+    //   return NotEnoughSpace;
+    // }
+    size_t i;
+    uint32_t tag;
     GenerateIndexTagHash32(item, &i, &tag);
     return AddImpl(i, tag);
   }
@@ -172,9 +171,18 @@ public:
     return AddImpl(i, tag);
   }
 
+Status Adp(const ItemType &item)  {
+  size_t i1, i2;
+  uint32_t tag;
+  GenerateIndexTagHash32(item, &i1, &tag);
+  i2 = AltIndex(i1, tag);
+  this->table_->Adp_ADPPCF(i1, i2, tag, cntSize);
+  return Ok;
+}
+
 Status AddImpl(const size_t i, const uint64_t tag)  {
   size_t curindex = i;
-  uint64_t curtag = tag;
+  uint64_t curtag = tag | (1ULL << (bits_per_item-cntSize));
   uint64_t oldtag;
   for (uint32_t count = 0; count < kMaxCuckooCount; count++) {
     // std::cout << "count:   " << count << std::endl;
@@ -188,11 +196,11 @@ Status AddImpl(const size_t i, const uint64_t tag)  {
       curtag = oldtag;
     }
     curindex = AltIndex(curindex, curtag);
-    curtag ^= 1ULL << (bits_per_item-1);
+    curtag ^= 1ULL << (bits_per_item-1-cntSize);
   }
   // test();
   victim_.index = curindex;
-  victim_.tag = curtag;
+  victim_.tag = curtag & ((1ULL << (bits_per_item - cntSize)) - 1);
   victim_.used = true;
   return Ok;
 }
@@ -219,8 +227,8 @@ Status Contain32(const ItemType &key) const {
   GenerateIndexTagHash32(key, &i1, &tag);
   i2 = AltIndex(i1, tag);
   found = victim_.used && ( (tag == victim_.tag && i1 == victim_.index) || 
-  ((tag ^ (1ULL << (bits_per_item-1))) == victim_.tag && i2 == victim_.index) );
-  if (found || this->table_->FindTagInBuckets_PCF(i1, i2, tag)) {
+  ((tag ^ (1ULL << (bits_per_item-1-cntSize))) == victim_.tag && i2 == victim_.index) );
+  if (found || this->table_->FindTagInBuckets_ADPPCF(i1, i2, tag, cntSize)) {
     return Ok;
   } else {
     return NotFound;
@@ -259,9 +267,5 @@ Status Contain32(const ItemType &key) const {
 
 }  // namespace cuckoofilter
 #endif  
-// old one
-// success!!!!!!  num_buckets: 131072
-// num_inserted: 74558
-// false positive rate is 6.05166%
-// false_queries: 4512 total_queries: 74558
+
 
